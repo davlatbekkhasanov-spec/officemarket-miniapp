@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>MiniApp Catalog</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+:root{
+  --bg:#f3f4f6;
+  --card:#fff;
+  --text:#111827;
+  --muted:#6b7280;
+  --accent:#0ea5e9;
+  --danger:#ef4444;
+  --shadow:0 2px 10px rgba(0,0,0,0.08);
+  --radius:14px;
+}
+*{box-sizing:border-box;}
+body{font-family: Arial; background:var(--bg); margin:0; padding:20px; color:var(--text);}
+.header{display:flex; align-items:center; gap:12px; margin-bottom:14px; flex-wrap:wrap;}
+h2{margin:0; font-size:22px;}
+.badge{display:inline-block; padding:2px 10px; border-radius:999px; background:#eef2ff; color:#3730a3; font-size:12px; margin-left:8px;}
+.search{flex:1; min-width:260px; max-width:520px;}
+.search input{width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:12px; outline:none;}
+.grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:15px;}
+.card{
+  background:var(--card);
+  border-radius:var(--radius);
+  padding:12px;
+  box-shadow:var(--shadow);
+  cursor:pointer;
+  transition:transform .05s ease;
+}
+.card:active{transform:scale(0.99);}
+.card img{width:100%; height:160px; object-fit:contain; background:#fff; border-radius:10px;}
+.title{font-weight:700; margin-top:8px; font-size:14px; line-height:1.2; min-height:34px;}
+.meta{margin-top:6px; font-size:13px; display:flex; justify-content:space-between; align-items:center; gap:10px;}
+.price{color:var(--accent); font-weight:700; white-space:nowrap;}
+.stock{color:var(--muted); white-space:nowrap;}
+.code{color:var(--muted); font-size:12px; margin-top:6px;}
+
+.toolbar{margin-left:auto; display:flex; align-items:center; gap:10px;}
+.cartbtn{border:1px solid #e5e7eb; background:#fff; border-radius:12px; padding:10px 12px; cursor:pointer; box-shadow:var(--shadow); display:flex; align-items:center; gap:8px;}
+.cartcount{background:var(--accent); color:white; padding:2px 8px; border-radius:999px; font-size:12px;}
+.carttotal{color:#111827; font-weight:700;}
+
+/* Modal (product) */
+.modal{
+  position:fixed; inset:0;
+  background:rgba(0,0,0,0.5);
+  display:none; align-items:center; justify-content:center;
+  padding:16px;
+  z-index:10;
+}
+.modal .box{
+  background:#fff;
+  width:min(420px, 100%);
+  border-radius:16px;
+  padding:16px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.25);
+}
+.modal .top{display:flex; align-items:flex-start; justify-content:space-between; gap:12px;}
+.modal h3{margin:0; font-size:16px; line-height:1.25;}
+.x{border:none; background:transparent; font-size:22px; cursor:pointer; padding:0 6px; line-height:1;}
+.row{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:12px;}
+.row label{color:var(--muted); font-size:13px;}
+.row input{width:140px; padding:10px 10px; border:1px solid #e5e7eb; border-radius:12px; outline:none; text-align:right;}
+.actions{display:flex; gap:10px; margin-top:14px;}
+.btn{flex:1; padding:11px 12px; border-radius:12px; border:1px solid #e5e7eb; background:#fff; cursor:pointer;}
+.btn.primary{background:var(--accent); color:#fff; border-color:var(--accent);}
+.small{color:var(--muted); font-size:12px; margin-top:10px;}
+
+/* Cart Drawer */
+.drawer{
+  position:fixed; inset:0;
+  background:rgba(0,0,0,0.5);
+  display:none;
+  z-index:20;
+}
+.drawer .panel{
+  position:absolute; right:0; top:0; height:100%;
+  width:min(520px, 100%);
+  background:#fff;
+  box-shadow:-10px 0 30px rgba(0,0,0,0.25);
+  padding:16px;
+  display:flex;
+  flex-direction:column;
+}
+.drawer .head{display:flex; align-items:center; justify-content:space-between; gap:10px; padding-bottom:10px; border-bottom:1px solid #eee;}
+.drawer h3{margin:0; font-size:16px;}
+.drawer .list{padding:12px 0; overflow:auto; flex:1; display:flex; flex-direction:column; gap:10px;}
+.item{
+  display:grid;
+  grid-template-columns:56px 1fr auto;
+  gap:10px;
+  align-items:center;
+  padding:10px;
+  border:1px solid #eee;
+  border-radius:14px;
+}
+.item img{width:56px; height:56px; object-fit:contain; background:#fff; border-radius:10px; border:1px solid #f3f4f6;}
+.item .name{font-weight:700; font-size:13px; line-height:1.2;}
+.item .sub{color:var(--muted); font-size:12px; margin-top:3px;}
+.trash{
+  border:1px solid #fee2e2;
+  background:#fff;
+  color:var(--danger);
+  border-radius:12px;
+  padding:8px 10px;
+  cursor:pointer;
+  font-weight:700;
+}
+.footer{border-top:1px solid #eee; padding-top:12px; display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;}
+.total{font-weight:800;}
+.btnDanger{border:1px solid #fee2e2; background:#fff; color:var(--danger);}
+</style>
+</head>
+<body>
+  <div class="header">
+    <h2>📦 Mahsulotlar katalogi <span class="badge" id="count"></span></h2>
+    <div class="toolbar">
+      <button class="cartbtn" id="cartBtn">
+        🛒 Savat <span class="cartcount" id="cartCount">0</span>
+        <span class="carttotal" id="cartTotal">0 so'm</span>
+      </button>
+    </div>
+    <div class="search"><input id="q" placeholder="Qidirish (kod yoki nom)..." /></div>
+  </div>
+
+  <div class="grid" id="products"></div>
+
+  <!-- Product Modal -->
+  <div class="modal" id="modal">
+    <div class="box">
+      <div class="top">
+        <div>
+          <h3 id="m_name"></h3>
+          <div class="small">Kod: <span id="m_code"></span> · Narx: <span id="m_price"></span> so'm · Qoldiq: <span id="m_stock"></span></div>
+        </div>
+        <button class="x" onclick="closeModal()">×</button>
+      </div>
+
+      <div class="row"><label>Shtuk</label><input id="qty_shtuk" type="number" min="1" value="1"></div>
+
+      <div class="actions">
+        <button class="btn" onclick="closeModal()">Bekor</button>
+        <button class="btn primary" onclick="addToCart()">Saqlash</button>
+      </div>
+      <div class="small">Savat tugmasini bosing — ichidan pozitsiyani o‘chira olasiz (🗑).</div>
+    </div>
+  </div>
+
+  <!-- Cart Drawer -->
+  <div class="drawer" id="drawer">
+    <div class="panel" role="dialog" aria-modal="true">
+      <div class="head">
+        <h3>🛒 Savat</h3>
+        <button class="x" onclick="closeCart()">×</button>
+      </div>
+      <div class="list" id="cartList"></div>
+      <div class="footer">
+        <div class="total">UMUMIY: <span id="drawerTotal">0 so'm</span></div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btnDanger" onclick="clearCart()">Savatni tozalash</button>
+          <button class="btn primary" onclick="checkout()">Yuborishga tayyor</button>
+        </div>
+      </div>
+      <div class="small">Hozircha “Yuborishga tayyor” demo. Keyingi qadamda bot/guruhga yuboramiz.</div>
+    </div>
+  </div>
+
+<script>
+const products = [
+  {code:731284, name:`Флаг Азербайджан наст. прост.`, price:5000, stock:100, img:`images/product_1.png`},
+  {code:731288, name:`Флаг Афганистан наст. прост.`, price:5000, stock:102, img:`images/product_2.png`},
+  {code:731297, name:`Флаг Бразилия наст. прост.`, price:5000, stock:105, img:`images/product_3.png`},
+  {code:731308, name:`Флаг Великобритания наст. прост.`, price:5000, stock:55, img:`images/product_4.png`},
+  {code:731311, name:`Флаг Германия наст. прост.`, price:5000, stock:56, img:`images/product_5.png`},
+  {code:731301, name:`Флаг Индия наст. прост.`, price:5000, stock:96, img:`images/product_6.png`},
+  {code:731303, name:`Флаг Индонезия наст. прост.`, price:5000, stock:11, img:`images/product_7.png`},
+  {code:731298, name:`Флаг Иран наст. прост.`, price:5000, stock:5, img:`images/product_8.png`},
+  {code:731289, name:`Флаг Испания наст. прост.`, price:5000, stock:9, img:`images/product_9.png`},
+  {code:731290, name:`Флаг Италия наст. прост.`, price:5000, stock:77, img:`images/product_10.png`},
+  {code:731296, name:`Флаг Казахстан наст. прост.`, price:5000, stock:46, img:`images/product_11.png`},
+  {code:731292, name:`Флаг Канада наст. прост.`, price:5000, stock:69, img:`images/product_12.png`},
+  {code:731286, name:`Флаг Катар наст. прост.`, price:5000, stock:32, img:`images/product_13.png`},
+  {code:731302, name:`Флаг Кыргызстан наст. прост.`, price:5000, stock:85, img:`images/product_14.png`},
+  {code:731300, name:`Флаг ОАЭ наст. прост.`, price:5000, stock:84, img:`images/product_15.png`},
+  {code:731287, name:`Флаг Пакистан наст. прост.`, price:5000, stock:21, img:`images/product_16.png`},
+  {code:731285, name:`Флаг Палестина наст. прост.`, price:5000, stock:22, img:`images/product_17.png`},
+  {code:731312, name:`Флаг Саудовская Аравия наст. прост.`, price:5000, stock:16, img:`images/product_18.png`},
+  {code:731307, name:`Флаг США наст. прост.`, price:5000, stock:76, img:`images/product_19.png`},
+  {code:731309, name:`Флаг Таджикистан наст. прост.`, price:5000, stock:36, img:`images/product_20.png`},
+  {code:731293, name:`Флаг Таиланд наст. прост.`, price:5000, stock:88, img:`images/product_21.png`},
+  {code:731295, name:`Флаг Туркменистан наст. прост.`, price:5000, stock:55, img:`images/product_22.png`},
+  {code:731299, name:`Флаг Турция наст. прост.`, price:5000, stock:11, img:`images/product_23.png`},
+  {code:731304, name:`Флаг Украина наст. прост.`, price:5000, stock:76, img:`images/product_24.png`},
+  {code:731310, name:`Флаг Франция наст. прост.`, price:5000, stock:14, img:`images/product_25.png`},
+  {code:731291, name:`Флаг Швейцария наст. прост.`, price:5000, stock:73, img:`images/product_26.png`},
+  {code:731305, name:`Флаг Южная Корея наст. прост.`, price:5000, stock:86, img:`images/product_27.png`},
+  {code:731306, name:`Флаг Япония наст. прост.`, price:5000, stock:34, img:`images/product_28.png`}
+];
+
+const container = document.getElementById("products");
+const q = document.getElementById("q");
+const count = document.getElementById("count");
+
+const modal = document.getElementById("modal");
+const m_name = document.getElementById("m_name");
+const m_code = document.getElementById("m_code");
+const m_price = document.getElementById("m_price");
+const m_stock = document.getElementById("m_stock");
+const qty_shtuk = document.getElementById("qty_shtuk");
+
+const cartCount = document.getElementById("cartCount");
+const cartTotal = document.getElementById("cartTotal");
+const cartBtn = document.getElementById("cartBtn");
+
+const drawer = document.getElementById("drawer");
+const cartList = document.getElementById("cartList");
+const drawerTotal = document.getElementById("drawerTotal");
+
+let currentProduct = null;
+
+function formatUzs(n){
+  try { return new Intl.NumberFormat('ru-RU').format(n) + " so'm"; }
+  catch(e){ return n + " so'm"; }
+}
+
+function getCart(){
+  try { return JSON.parse(localStorage.getItem("cart") || "[]"); } catch(e) { return []; }
+}
+function setCart(cart){
+  localStorage.setItem("cart", JSON.stringify(cart));
+  updateCartUI(cart);
+}
+
+function cartSummary(cart){
+  let total = 0;
+  for(const it of cart){
+    const qty = Number(it.shtuk||0);
+    total += qty * Number(it.price||0);
+  }
+  return {count: cart.length, total};
+}
+
+function updateCartUI(cart){
+  const s = cartSummary(cart);
+  cartCount.textContent = s.count;
+  cartTotal.textContent = formatUzs(s.total);
+  drawerTotal.textContent = formatUzs(s.total);
+}
+
+setCart(getCart());
+
+function openModal(p){
+  currentProduct = p;
+  m_name.textContent = p.name;
+  m_code.textContent = p.code;
+  m_price.textContent = p.price;
+  m_stock.textContent = p.stock;
+  qty_shtuk.value = 1;
+  modal.style.display = "flex";
+}
+function closeModal(){
+  modal.style.display = "none";
+  currentProduct = null;
+}
+modal.addEventListener("click", (e)=>{ if(e.target === modal) closeModal(); });
+
+function addToCart(){
+  if(!currentProduct) return;
+  const item = {
+    code: currentProduct.code,
+    name: currentProduct.name,
+    price: currentProduct.price,
+    img: currentProduct.img,
+    shtuk: Number(qty_shtuk.value||0),
+  };
+  if(item.shtuk <= 0){
+    alert("Miqdor kiriting (Shtuk).");
+    return;
+  }
+  const cart = getCart();
+  cart.push(item);
+  setCart(cart);
+  closeModal();
+}
+
+function openCart(){
+  renderCart();
+  drawer.style.display = "block";
+}
+function closeCart(){
+  drawer.style.display = "none";
+}
+drawer.addEventListener("click", (e)=>{ if(e.target === drawer) closeCart(); });
+
+function renderCart(){
+  const cart = getCart();
+  cartList.innerHTML = "";
+  if(cart.length === 0){
+    cartList.innerHTML = "<div class='small'>Savat bo'sh.</div>";
+    updateCartUI(cart);
+    return;
+  }
+
+  cart.forEach((it, idx)=>{
+    const lineTotal = Number(it.shtuk||0) * Number(it.price||0);
+    const el = document.createElement("div");
+    el.className = "item";
+    el.innerHTML = `
+      <img src="${it.img}" alt="img">
+      <div>
+        <div class="name">${it.name}</div>
+        <div class="sub">Kod: ${it.code} · Shtuk: ${it.shtuk} × ${it.price} = <b>${formatUzs(lineTotal)}</b></div>
+      </div>
+      <div>
+        <button class="trash" title="O'chirish" onclick="removeItem(${idx})">🗑</button>
+      </div>
+    `;
+    cartList.appendChild(el);
+  });
+
+  updateCartUI(cart);
+}
+
+function removeItem(index){
+  const cart = getCart();
+  if(index < 0 || index >= cart.length) return;
+  cart.splice(index, 1);
+  setCart(cart);
+  renderCart();
+}
+
+function clearCart(){
+  if(!confirm("Savatni tozalaysizmi?")) return;
+  const cart = [];
+  setCart(cart);
+  renderCart();
+}
+
+function checkout(){
+  const cart = getCart();
+  if(cart.length === 0) return alert("Savat bo'sh.");
+  alert("Demo: keyingi qadamda shu savat bot orqali guruhga yuboriladi.");
+}
+
+cartBtn.addEventListener("click", openCart);
+
+function render(list){
+  container.innerHTML = "";
+  list.forEach(p=>{
+    const card = document.createElement("div");
+    card.className = "card";
+    card.onclick = ()=>openModal(p);
+    card.innerHTML = `
+      <img src="${p.img}" alt="img">
+      <div class="title">${p.name}</div>
+      <div class="code">Kod: ${p.code}</div>
+      <div class="meta">
+        <div class="price">${p.price} so'm</div>
+        <div class="stock">Qoldiq: ${p.stock}</div>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+  count.textContent = list.length + " ta";
+}
+
+render(products);
+
+q.addEventListener("input", () => {
+  const s = q.value.trim().toLowerCase();
+  if(!s) return render(products);
+  const filtered = products.filter(p =>
+    String(p.code).includes(s) || p.name.toLowerCase().includes(s)
+  );
+  render(filtered);
+});
+</script>
+</body>
+</html>
